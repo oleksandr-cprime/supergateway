@@ -166,6 +166,7 @@ export async function stdioToSse(args: StdioToSseArgs) {
     logger.info(`Listening on port ${port}`)
     logger.info(`SSE endpoint: http://localhost:${port}${ssePath}`)
     logger.info(`POST messages: http://localhost:${port}${messagePath}`)
+    logger.info(`MONGO_URI: ${process.env.MONGO_URI}`)
   })
 
   let buffer = ''
