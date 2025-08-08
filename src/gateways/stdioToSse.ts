@@ -104,6 +104,7 @@ export async function stdioToSse(args: StdioToSseArgs) {
   }
 
   app.get(ssePath, async (req, res) => {
+    logger.info(`SSE connection from IP: ${req.ip}`)
     logger.info(`--------------------------------`)
     logger.info(`New SSE connection from ${req.ip}`)
     logger.info(`Query params: ${JSON.stringify(req.query)}`)
