@@ -152,6 +152,7 @@ async function main() {
   }
 
   logger.info('Starting...')
+  logger.info('Custom output from debug.log')
   logger.info(
     'Supergateway is supported by Supermachine (hosted MCPs) - https://supermachine.ai',
   )
