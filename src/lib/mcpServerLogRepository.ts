@@ -6,8 +6,8 @@ export class McpServerLogRepository {
 
   constructor(
     private readonly client: MongoClient,
-    dbName: string,
-    collectionName: string,
+    dbName = 'local',
+    collectionName = 'mcp_server_logs',
   ) {
     this.collection = this.client.db(dbName).collection(collectionName)
   }

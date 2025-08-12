@@ -70,8 +70,8 @@ export async function stdioToSse(args: StdioToSseArgs) {
   const mongoClient = initMongoClient()
   const mcpServerLogRepository = new McpServerLogRepository(
     mongoClient,
-    'cprime_dev',
-    'mcp_server_logs',
+    process.env.MONGO_DB,
+    process.env.LOGS_COLLECTION,
   )
 
   const child: ChildProcessWithoutNullStreams = spawn(stdioCmd, { shell: true })
@@ -118,9 +118,6 @@ export async function stdioToSse(args: StdioToSseArgs) {
 
   app.get(ssePath, async (req, res) => {
     logger.info(`SSE connection from IP: ${req.ip}`)
-    logger.info(`--------------------------------`)
-    logger.info(`New SSE connection from ${req.ip}`)
-    logger.info(`Query params: ${JSON.stringify(req.query)}`)
     setResponseHeaders({
       res,
       headers,
@@ -199,7 +196,9 @@ export async function stdioToSse(args: StdioToSseArgs) {
     logger.info(`Listening on port ${port}`)
     logger.info(`SSE endpoint: http://localhost:${port}${ssePath}`)
     logger.info(`POST messages: http://localhost:${port}${messagePath}`)
-    logger.info(`MONGO_URI: ${process.env.MONGO_URI}`)
+    logger.info(
+      `MONGO_URI: ${process.env.MONGO_URI}, MONGO_DB: ${process.env.MONGO_DB}, LOGS_COLLECTION: ${process.env.LOGS_COLLECTION}`,
+    )
   })
 
   let buffer = ''
