@@ -18,7 +18,11 @@ export class McpServerLogRepository {
 
   update(
     sessionId: string,
-    update: { result?: unknown; id: number; error?: string; code?: number },
+    update: {
+      result?: unknown
+      id: number
+      error?: { message: string; code: number }
+    },
   ) {
     return this.collection.updateOne(
       { sessionId, 'data.id': update.id },
@@ -26,7 +30,6 @@ export class McpServerLogRepository {
         $set: {
           'data.result': update.result,
           'data.error': update.error,
-          'data.code': update.code,
           updatedAt: new Date(),
         },
       },
