@@ -73,9 +73,7 @@ export async function stdioToSse(args: StdioToSseArgs) {
     'cprime_dev',
     'mcp_server_logs',
   )
-  logger.info(
-    `MONGO_URI: ${process.env.MONGO_URI}, db: cprime_dev, collection: mcp_server_logs`,
-  )
+
   const child: ChildProcessWithoutNullStreams = spawn(stdioCmd, { shell: true })
   child.on('exit', (code, signal) => {
     logger.error(`Child exited: code=${code}, signal=${signal}`)
@@ -89,7 +87,12 @@ export async function stdioToSse(args: StdioToSseArgs) {
 
   const sessions: Record<
     string,
-    { transport: SSEServerTransport; response: express.Response }
+    {
+      transport: SSEServerTransport
+      response: express.Response
+      ip: string
+      userId: string
+    }
   > = {}
 
   const app = express()
@@ -128,18 +131,29 @@ export async function stdioToSse(args: StdioToSseArgs) {
 
     const sessionId = sseTransport.sessionId
     if (sessionId) {
-      sessions[sessionId] = { transport: sseTransport, response: res }
+      sessions[sessionId] = {
+        transport: sseTransport,
+        response: res,
+        ip: req.ip ?? '',
+        userId: (req.query.userId as string) ?? '',
+      }
     }
 
     sseTransport.onmessage = (msg: JSONRPCMessage) => {
       logger.info(`SSE → Child (session ${sessionId}): ${JSON.stringify(msg)}`)
-      mcpServerLogRepository.insert({
-        ip: req.ip,
-        userId: req.query.userId,
-        sessionId,
-        message: msg,
-        timestamp: new Date(),
-      })
+      mcpServerLogRepository
+        .insert({
+          ip: req.ip ?? '',
+          userId: (req.query.userId as string) ?? '',
+          sessionId,
+          type: 'rpc',
+          data: msg,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .catch((err) => {
+          logger.error(`Failed to insert log:`, JSON.stringify(err))
+        })
       child.stdin.write(JSON.stringify(msg) + '\n')
     }
 
@@ -198,25 +212,41 @@ export async function stdioToSse(args: StdioToSseArgs) {
       try {
         const jsonMsg = JSON.parse(line)
         logger.info('Child → SSE:', jsonMsg)
-        mcpServerLogRepository.insert({
-          type: 'json',
-          message: jsonMsg,
-          timestamp: new Date(),
-        })
+
         for (const [sid, session] of Object.entries(sessions)) {
           try {
             session.transport.send(jsonMsg)
+            mcpServerLogRepository
+              .update(sid, jsonMsg.id, jsonMsg)
+              .catch((err) => {
+                logger.error(`Failed to update log:`, JSON.stringify(err))
+              })
           } catch (err) {
             logger.error(`Failed to send to session ${sid}:`, err)
             delete sessions[sid]
           }
         }
       } catch {
-        mcpServerLogRepository.insert({
-          type: 'non-json',
-          message: line,
-          timestamp: new Date(),
-        })
+        for (const [sid, session] of Object.entries(sessions)) {
+          try {
+            mcpServerLogRepository
+              .insert({
+                ip: session.ip,
+                userId: session.userId,
+                sessionId: sid,
+                type: 'system',
+                data: line,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              })
+              .catch((err) => {
+                logger.error(`Failed to insert log:`, JSON.stringify(err))
+              })
+          } catch (err) {
+            logger.error(`Failed to send to session ${sid}:`, err)
+            delete sessions[sid]
+          }
+        }
         logger.error(`Child non-JSON: ${line}`)
       }
     })
@@ -224,5 +254,20 @@ export async function stdioToSse(args: StdioToSseArgs) {
 
   child.stderr.on('data', (chunk: Buffer) => {
     logger.error(`Child stderr: ${chunk.toString('utf8')}`)
+    for (const [sid, session] of Object.entries(sessions)) {
+      mcpServerLogRepository
+        .insert({
+          ip: session.ip,
+          userId: session.userId,
+          sessionId: sid,
+          type: 'error',
+          data: chunk.toString('utf8'),
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .catch((err) => {
+          logger.error(`Failed to insert log:`, JSON.stringify(err))
+        })
+    }
   })
 }
