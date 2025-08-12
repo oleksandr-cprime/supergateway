@@ -207,7 +207,7 @@ export async function stdioToSse(args: StdioToSseArgs) {
     buffer += chunk.toString('utf8')
     const lines = buffer.split(/\r?\n/)
     buffer = lines.pop() ?? ''
-    lines.forEach((line) => {
+    lines.forEach(async (line) => {
       if (!line.trim()) return
       try {
         const jsonMsg = JSON.parse(line)
@@ -217,7 +217,7 @@ export async function stdioToSse(args: StdioToSseArgs) {
           try {
             session.transport.send(jsonMsg)
             if (jsonMsg.id) {
-              mcpServerLogRepository.update(sid, jsonMsg).catch((err) => {
+              await mcpServerLogRepository.update(sid, jsonMsg).catch((err) => {
                 logger.error(`Failed to update log:`, JSON.stringify(err))
               })
             }
