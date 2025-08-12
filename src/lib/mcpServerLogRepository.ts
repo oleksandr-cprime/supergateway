@@ -16,10 +16,20 @@ export class McpServerLogRepository {
     return this.collection.insertOne(data)
   }
 
-  update(sessionId: string, update: { result: unknown; id: number }) {
+  update(
+    sessionId: string,
+    update: { result?: unknown; id: number; error?: string; code?: number },
+  ) {
     return this.collection.updateOne(
       { sessionId, 'data.id': update.id },
-      { $set: { 'data.result': update.result, updatedAt: new Date() } },
+      {
+        $set: {
+          'data.result': update.result,
+          'data.error': update.error,
+          'data.code': update.code,
+          updatedAt: new Date(),
+        },
+      },
     )
   }
 }
