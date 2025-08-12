@@ -216,11 +216,11 @@ export async function stdioToSse(args: StdioToSseArgs) {
         for (const [sid, session] of Object.entries(sessions)) {
           try {
             session.transport.send(jsonMsg)
-            mcpServerLogRepository
-              .update(sid, jsonMsg.id, jsonMsg)
-              .catch((err) => {
+            if (jsonMsg.id) {
+              mcpServerLogRepository.update(sid, jsonMsg).catch((err) => {
                 logger.error(`Failed to update log:`, JSON.stringify(err))
               })
+            }
           } catch (err) {
             logger.error(`Failed to send to session ${sid}:`, err)
             delete sessions[sid]

@@ -1,3 +1,4 @@
+import { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js'
 import { Collection, MongoClient } from 'mongodb'
 
 export class McpServerLogRepository {
@@ -15,10 +16,10 @@ export class McpServerLogRepository {
     return this.collection.insertOne(data)
   }
 
-  update(sessionId: string, rpcId: string, data: Partial<McpServerLogDto>) {
+  update(sessionId: string, update: { result: unknown; id: number }) {
     return this.collection.updateOne(
-      { sessionId, 'data.id': rpcId },
-      { $set: { ...data, updatedAt: new Date() } },
+      { sessionId, 'data.id': update.id },
+      { $set: { 'data.result': update.result, updatedAt: new Date() } },
     )
   }
 }
@@ -28,7 +29,15 @@ export type McpServerLogDto = {
   type: 'rpc' | 'error' | 'system'
   userId: string
   sessionId: string
-  data: unknown
+  data:
+    | {
+        id: string | number
+        jsonrpc: string
+        result?: unknown
+        error?: unknown
+        [key: string]: unknown
+      }
+    | string
   createdAt: Date
   updatedAt: Date
 }
