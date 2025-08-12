@@ -73,7 +73,9 @@ export async function stdioToSse(args: StdioToSseArgs) {
     'cprime_dev',
     'mcp_server_logs',
   )
-
+  logger.info(
+    `MONGO_URI: ${process.env.MONGO_URI}, db: cprime_dev, collection: mcp_server_logs`,
+  )
   const child: ChildProcessWithoutNullStreams = spawn(stdioCmd, { shell: true })
   child.on('exit', (code, signal) => {
     logger.error(`Child exited: code=${code}, signal=${signal}`)
