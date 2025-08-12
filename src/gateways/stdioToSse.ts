@@ -9,6 +9,8 @@ import { Logger } from '../types.js'
 import { getVersion } from '../lib/getVersion.js'
 import { onSignals } from '../lib/onSignals.js'
 import { serializeCorsOrigin } from '../lib/serializeCorsOrigin.js'
+import { initMongoClient } from '../lib/initMongoClient.js'
+import { McpServerLogRepository } from '../lib/mcpServerLogRepository.js'
 
 export interface StdioToSseArgs {
   stdioCmd: string
@@ -65,6 +67,12 @@ export async function stdioToSse(args: StdioToSseArgs) {
   )
 
   onSignals({ logger })
+  const mongoClient = initMongoClient()
+  const mcpServerLogRepository = new McpServerLogRepository(
+    mongoClient,
+    'cprime_dev',
+    'mcp_server_logs',
+  )
 
   const child: ChildProcessWithoutNullStreams = spawn(stdioCmd, { shell: true })
   child.on('exit', (code, signal) => {
@@ -123,6 +131,13 @@ export async function stdioToSse(args: StdioToSseArgs) {
 
     sseTransport.onmessage = (msg: JSONRPCMessage) => {
       logger.info(`SSE → Child (session ${sessionId}): ${JSON.stringify(msg)}`)
+      mcpServerLogRepository.insert({
+        ip: req.ip,
+        userId: req.query.userId,
+        sessionId,
+        message: msg,
+        timestamp: new Date(),
+      })
       child.stdin.write(JSON.stringify(msg) + '\n')
     }
 
@@ -181,6 +196,11 @@ export async function stdioToSse(args: StdioToSseArgs) {
       try {
         const jsonMsg = JSON.parse(line)
         logger.info('Child → SSE:', jsonMsg)
+        mcpServerLogRepository.insert({
+          type: 'json',
+          message: jsonMsg,
+          timestamp: new Date(),
+        })
         for (const [sid, session] of Object.entries(sessions)) {
           try {
             session.transport.send(jsonMsg)
@@ -190,6 +210,11 @@ export async function stdioToSse(args: StdioToSseArgs) {
           }
         }
       } catch {
+        mcpServerLogRepository.insert({
+          type: 'non-json',
+          message: line,
+          timestamp: new Date(),
+        })
         logger.error(`Child non-JSON: ${line}`)
       }
     })
