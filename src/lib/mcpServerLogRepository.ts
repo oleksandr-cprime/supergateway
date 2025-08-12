@@ -29,15 +29,7 @@ export type McpServerLogDto = {
   type: 'rpc' | 'error' | 'system'
   userId: string
   sessionId: string
-  data:
-    | {
-        id: string | number
-        jsonrpc: string
-        result?: unknown
-        error?: unknown
-        [key: string]: unknown
-      }
-    | string
+  data: JSONRPCMessage | string
   createdAt: Date
   updatedAt: Date
 }
